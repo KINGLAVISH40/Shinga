@@ -29,31 +29,36 @@ print(df['Name'])  # Prints the "Name" column to check for correctness
 import pandas as pd
 from fpdf import FPDF
 import os
+import yagmail
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+EMAIL_USER = os.getenv("EMAIL_USER")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 
 # Load Excel file
 xls = pd.ExcelFile("employees.xlsx")
 print("Sheets found:", xls.sheet_names)
 
-# Load employee data
+# Load employee data from "Data" sheet
 df = pd.read_excel(xls, sheet_name="Data")
 df.columns = df.columns.str.strip()
 
 # Create payslips directory
 os.makedirs("payslips", exist_ok=True)
 
-# Loop through each employee
-for _, emp in df.iterrows():
-    emp_id = str(emp["Employee ID"])
-    name = emp["Name"]
-    basic = emp["Basic Salary"]
-    allowances = emp["Allowances"]
-    deductions = emp["Deductions"]
+# Define generate_payslip function
+def generate_payslip(employee):
+    emp_id = str(employee["Employee ID"])
+    name = employee["Name"]
+    basic = employee["Basic Salary"]
+    allowances = employee["Allowances"]
+    deductions = employee["Deductions"]
     net_salary = basic + allowances - deductions
 
-    # Create PDF
     pdf = FPDF()
     pdf.add_page()
-
     pdf.set_font("Arial", "B", 16)
     pdf.cell(0, 10, "Lavish Interpricies - Salary Slip", ln=True, align="C")
 
@@ -64,52 +69,27 @@ for _, emp in df.iterrows():
     pdf.cell(0, 10, f"Basic Salary: ${basic}", ln=True)
     pdf.cell(0, 10, f"Allowances: ${allowances}", ln=True)
     pdf.cell(0, 10, f"Deductions: ${deductions}", ln=True)
-
     pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 10, f"Net Salary: ${net_salary}", ln=True)
-
     pdf.ln(20)
     pdf.set_font("Arial", "", 12)
     pdf.cell(0, 10, "Employee Signature: ____________________", ln=True)
     pdf.cell(0, 10, "Authorized Signature: ___________________", ln=True)
 
-    pdf.output(f"payslips/{emp_id}_{name}.pdf")
-
-print("Payslips generated.")
-
-
-
-
-# Function to generate a PDF payslip
-def generate_payslip(employee):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", "B", 16)
-    pdf.cell(200, 10, f"Payslip for {employee['Name']}", ln=True, align='C')
-    pdf.ln(10)
-
-    pdf.set_font("Arial", "", 12)
-    pdf.cell(100, 10, f"Employee ID: {employee['Employee ID']}", ln=True)
-    pdf.cell(100, 10, f"Basic Salary: ${employee['Basic Salary']:.2f}", ln=True)
-    pdf.cell(100, 10, f"Allowances: ${employee['Allowances']:.2f}", ln=True)
-    pdf.cell(100, 10, f"Deductions: ${employee['Deductions']:.2f}", ln=True)
-    net_salary = employee['Basic Salary'] + employee['Allowances'] - employee['Deductions']
-    pdf.cell(100, 10, f"Net Salary: ${net_salary:.2f}", ln=True)
-
-    filename = f"payslips/{employee['Employee ID']}.pdf"
+    filename = f"payslips/{emp_id}_{name}.pdf"
     pdf.output(filename)
     return filename
 
-# Send email with attachment
+# Define email sending function
 def send_email(to_email, subject, body, attachment):
     try:
         yag = yagmail.SMTP(EMAIL_USER, EMAIL_PASSWORD)
         yag.send(to=to_email, subject=subject, contents=body, attachments=attachment)
-        print(f"Email sent to {to_email}")
+        print(f" Email sent to {to_email}")
     except Exception as e:
         print(f"Failed to send email to {to_email}: {e}")
 
-# Process each employee
+#  Process each employee
 for index, row in df.iterrows():
     try:
         payslip_file = generate_payslip(row)
